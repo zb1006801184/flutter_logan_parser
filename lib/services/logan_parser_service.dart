@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:pointycastle/export.dart';
+import 'package:archive/archive.dart';
 import '../models/logan_log_item.dart';
 
 /// Logan 日志解析服务
@@ -9,80 +10,168 @@ class LoganParserService {
   // Logan 默认加密密钥（实际项目中这个密钥应该从配置中获取）
   static const String _defaultKey = "0123456789012345";
   static const String _defaultIv = "0123456789012345";
+  
+  // Logan 加密内容开始标识符
+  static const int encryptContentStart = 0x01;
 
   /// 解析 Logan 日志文件
   Future<List<LoganLogItem>> parseLogFile(File file) async {
     try {
       final fileBytes = await file.readAsBytes();
+      print('开始解析 Logan 文件，文件大小: ${fileBytes.length} 字节');
 
-      // 尝试解密文件内容
-      final decryptedContent = await _decryptLogContent(fileBytes);
-
+      // 使用正确的 Logan 解析过程
+      final decryptedContent = await _parseLoganFile(fileBytes);
+      
       // 解析解密后的内容
       final logItems = await _parseLogContent(decryptedContent);
-
+      
+      print('解析完成，共获得 ${logItems.length} 条日志');
       return logItems;
     } catch (e) {
       print('解析 Logan 日志文件失败: $e');
-
-      // 如果解密失败，尝试直接解析（可能是未加密的日志）
-      try {
-        final content = await file.readAsString();
-        return await _parseLogContent(content);
-      } catch (e2) {
-        print('直接解析日志文件也失败: $e2');
-        rethrow;
-      }
+      rethrow;
     }
   }
 
-  /// 解密日志内容
-  Future<String> _decryptLogContent(Uint8List encryptedBytes) async {
+  /// 按照正确的 Logan 格式解析文件
+  Future<String> _parseLoganFile(Uint8List fileBytes) async {
+    final buffer = ByteData.sublistView(fileBytes);
+    var offset = 0;
+    final decryptedContent = StringBuffer();
+
+    while (offset < fileBytes.length) {
+      // 查找加密内容开始标识符
+      if (offset >= fileBytes.length) break;
+
+      final marker = buffer.getUint8(offset);
+      if (marker != encryptContentStart) {
+        // 如果不是加密标识符，继续查找
+        offset++;
+        continue;
+      }
+
+      offset++; // 跳过标识符
+
+      // 读取加密内容长度（4字节，大端序）
+      if (offset + 4 > fileBytes.length) break;
+
+      final encryptedLength = buffer.getUint32(offset, Endian.big);
+      offset += 4;
+
+      print('找到加密块，长度: $encryptedLength');
+
+      // 读取加密内容
+      if (offset + encryptedLength > fileBytes.length) {
+        print('加密内容长度超出文件范围，跳过');
+        break;
+      }
+
+      final encryptedData = fileBytes.sublist(offset, offset + encryptedLength);
+      offset += encryptedLength;
+      
+      try {
+        // 解密数据
+        final decryptedData = await _decryptAES(encryptedData);
+
+        // 解压缩数据
+        final decompressedData = await _decompressGzip(decryptedData);
+
+        // 转换为字符串并添加到结果中
+        final content = utf8.decode(decompressedData);
+        decryptedContent.write(content);
+
+        print('成功解密并解压缩一个数据块，内容长度: ${content.length}');
+      } catch (e) {
+        print('处理加密块失败: $e');
+        // 继续处理下一个块
+        continue;  
+      }
+    }
+
+    return decryptedContent.toString();
+  }
+
+  /// AES 解密
+  Future<Uint8List> _decryptAES(Uint8List encryptedData) async {
     try {
-      // 使用 AES 解密
       final key = utf8.encode(_defaultKey);
       final iv = utf8.encode(_defaultIv);
 
-      final cipher = BlockCipher('AES')
-        ..init(false, ParametersWithIV(KeyParameter(key), iv));
+      // 使用 AES/CBC/NoPadding 模式
+      final cipher = CBCBlockCipher(AESEngine());
+      final params = ParametersWithIV(KeyParameter(key), iv);
+      cipher.init(false, params);
+
+      // 确保数据长度是16的倍数（AES块大小）
+      var dataToDecrypt = encryptedData;
+      if (dataToDecrypt.length % 16 != 0) {
+        // 如果不是16的倍数，需要填充
+        final paddedLength = ((dataToDecrypt.length ~/ 16) + 1) * 16;
+        final paddedData = Uint8List(paddedLength);
+        paddedData.setRange(0, dataToDecrypt.length, dataToDecrypt);
+        dataToDecrypt = paddedData;
+      }
+
+      final decryptedData = Uint8List(dataToDecrypt.length);
+      var offset = 0;
 
       // 分块解密
-      final decryptedBytes = <int>[];
-      for (int i = 0; i < encryptedBytes.length; i += 16) {
+      for (var i = 0; i < dataToDecrypt.length; i += 16) {
         final blockEnd =
-            (i + 16 < encryptedBytes.length) ? i + 16 : encryptedBytes.length;
-        final block = encryptedBytes.sublist(i, blockEnd);
-
-        // 如果不足16字节，进行padding
-        if (block.length < 16) {
-          final paddedBlock = Uint8List(16);
-          paddedBlock.setRange(0, block.length, block);
-          decryptedBytes.addAll(cipher.process(paddedBlock));
-        } else {
-          decryptedBytes.addAll(cipher.process(block));
+            (i + 16 < dataToDecrypt.length) ? i + 16 : dataToDecrypt.length;
+        final block = dataToDecrypt.sublist(i, blockEnd);
+        
+        if (block.length == 16) {
+          final decryptedBlock = cipher.process(block);
+          decryptedData.setRange(
+            offset,
+            offset + decryptedBlock.length,
+            decryptedBlock,
+          );
+          offset += decryptedBlock.length;
         }
       }
 
-      // 移除 padding
-      final unpaddedBytes = _removePadding(Uint8List.fromList(decryptedBytes));
-
-      return utf8.decode(unpaddedBytes);
+      // 移除可能的填充
+      return _removePKCS7Padding(decryptedData.sublist(0, offset));
     } catch (e) {
       print('AES 解密失败: $e');
       rethrow;
     }
   }
 
-  /// 移除 PKCS7 padding
-  Uint8List _removePadding(Uint8List data) {
+  /// 移除 PKCS7 填充
+  Uint8List _removePKCS7Padding(Uint8List data) {
     if (data.isEmpty) return data;
 
     final paddingLength = data.last;
-    if (paddingLength > data.length || paddingLength == 0) {
+    if (paddingLength > data.length ||
+        paddingLength == 0 ||
+        paddingLength > 16) {
       return data;
     }
 
+    // 验证填充是否正确
+    for (var i = data.length - paddingLength; i < data.length; i++) {
+      if (data[i] != paddingLength) {
+        return data; // 填充不正确，返回原数据
+      }
+    }
+
     return data.sublist(0, data.length - paddingLength);
+  }
+
+  /// GZIP 解压缩
+  Future<Uint8List> _decompressGzip(Uint8List compressedData) async {
+    try {
+      final archive = GZipDecoder();
+      final decompressed = archive.decodeBytes(compressedData);
+      return Uint8List.fromList(decompressed);
+    } catch (e) {
+      print('GZIP 解压缩失败: $e');
+      rethrow;
+    }
   }
 
   /// 解析日志内容
@@ -92,6 +181,7 @@ class LoganParserService {
     try {
       // 按行分割内容
       final lines = content.split('\n');
+      print('开始解析 ${lines.length} 行日志内容');
 
       for (final line in lines) {
         final trimmedLine = line.trim();
@@ -101,7 +191,15 @@ class LoganParserService {
           // 尝试解析为 JSON
           final jsonData = jsonDecode(trimmedLine);
           if (jsonData is Map<String, dynamic>) {
-            final logItem = LoganLogItem.fromJson(jsonData);
+            // 使用正确的 Logan JSON 格式
+            final logItem = LoganLogItem(
+              content: jsonData['c']?.toString() ?? '',
+              logTime: _formatLogTime(jsonData['l']),
+              flag: jsonData['f']?.toString() ?? '3',
+              threadName: jsonData['n']?.toString() ?? 'unknown',
+              threadId: jsonData['i']?.toString() ?? '0',
+              isMainThread: jsonData['m']?.toString() ?? 'false',
+            );
             logItems.add(logItem);
           }
         } catch (e) {
@@ -133,6 +231,31 @@ class LoganParserService {
     }
 
     return logItems;
+  }
+
+  /// 格式化日志时间
+  String _formatLogTime(dynamic timeValue) {
+    if (timeValue == null) {
+      return DateTime.now().toIso8601String();
+    }
+
+    try {
+      int timestamp;
+      if (timeValue is String) {
+        timestamp = int.parse(timeValue);
+      } else if (timeValue is num) {
+        timestamp = timeValue.toInt();
+      } else {
+        return DateTime.now().toIso8601String();
+      }
+
+      // Logan 使用毫秒时间戳
+      final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
+      return dateTime.toIso8601String();
+    } catch (e) {
+      print('时间格式化失败: $e, 原始值: $timeValue');
+      return DateTime.now().toIso8601String();
+    }
   }
 
   /// 生成解析后的 JSON 文件
