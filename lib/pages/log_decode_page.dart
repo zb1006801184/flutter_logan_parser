@@ -73,7 +73,7 @@ class _LogDecodePageState extends ConsumerState<LogDecodePage> {
       ),
       floatingActionButton: FloatingAddButton(
         onPressed: () {
-          ref.read(appStateProvider.notifier).pickAndParseLogFile(ref);
+          ref.read(appStateProvider.notifier).pickAndParseLogFile(ref, context);
         },
       ),
     );
@@ -151,7 +151,9 @@ class _LogDecodePageState extends ConsumerState<LogDecodePage> {
           message: failState.errorMessage,
           actionText: '重新选择文件',
           onActionPressed: () {
-            ref.read(appStateProvider.notifier).pickAndParseLogFile(ref);
+            ref
+                .read(appStateProvider.notifier)
+                .pickAndParseLogFile(ref, context);
           },
         );
 
@@ -168,7 +170,9 @@ class _LogDecodePageState extends ConsumerState<LogDecodePage> {
                 _searchController.clear();
                 _onFilterChanged('');
               } else {
-                ref.read(appStateProvider.notifier).pickAndParseLogFile(ref);
+                ref
+                    .read(appStateProvider.notifier)
+                    .pickAndParseLogFile(ref, context);
               }
             },
           );

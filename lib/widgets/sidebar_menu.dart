@@ -24,8 +24,9 @@ class SidebarMenu extends ConsumerWidget {
       title: 'Logan解析',
       icon: Icons.description_outlined,
     ),
-    SidebarMenuItem(id: '1', title: '其他工具', icon: Icons.build_outlined),
-    SidebarMenuItem(id: '2', title: '关于', icon: Icons.info_outline),
+    SidebarMenuItem(id: '1', title: '解析历史', icon: Icons.history_outlined),
+    SidebarMenuItem(id: '2', title: '其他工具', icon: Icons.build_outlined),
+    SidebarMenuItem(id: '3', title: '关于', icon: Icons.info_outline),
   ];
 
   const SidebarMenu({super.key});
@@ -83,8 +84,9 @@ class SidebarMenu extends ConsumerWidget {
                     child: InkWell(
                       borderRadius: BorderRadius.circular(AppRadius.md),
                       onTap: () {
-                        ref.read(selectedMenuItemProvider.notifier).state =
-                            item.id;
+                        ref
+                            .read(appStateProvider.notifier)
+                            .updateSelectedMenuItem(ref, item.id);
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(

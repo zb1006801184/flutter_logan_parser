@@ -261,14 +261,29 @@ class LoganParserService {
   /// 生成解析后的 JSON 文件
   Future<File> generateJsonFile(
     List<LoganLogItem> logItems,
-    String outputDir,
-  ) async {
+    String outputDir, {
+    String? originalFileName,
+  }) async {
     final jsonData = logItems.map((item) => item.toJson()).toList();
     final jsonString = const JsonEncoder.withIndent('  ').convert(jsonData);
 
+    // 创建更有意义的文件名
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final outputFile = File('$outputDir/logan_parsed_$timestamp.json');
+    String fileName;
 
+    if (originalFileName != null && originalFileName.isNotEmpty) {
+      // 移除原文件的扩展名，添加解析标识和时间戳
+      final nameWithoutExtension = originalFileName.split('.').first;
+      fileName = '${nameWithoutExtension}_parsed_$timestamp.json';
+    } else {
+      fileName = 'logan_parsed_$timestamp.json';
+    }
+
+    final outputFile = File('$outputDir/$fileName');
+
+    // 确保输出目录存在
+    await outputFile.parent.create(recursive: true);
+    
     await outputFile.writeAsString(jsonString);
     return outputFile;
   }

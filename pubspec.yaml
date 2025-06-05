@@ -53,6 +53,9 @@ dependencies:
   # 路径提供器（用于获取应用目录）
   path_provider: ^2.1.5
   
+  # 本地数据存储
+  shared_preferences: ^2.3.3
+  
   # 加密解密
   crypto: ^3.0.6
   pointycastle: ^4.0.0

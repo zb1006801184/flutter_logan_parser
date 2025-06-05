@@ -1,15 +1,31 @@
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 
 import '../models/logan_log_item.dart';
 import '../models/app_state.dart';
 import '../services/logan_parser_service.dart';
+import '../services/history_storage_service.dart';
+import '../services/logan_data_storage_service.dart';
 
 /// Logan 解析服务 Provider
 final loganParserServiceProvider = Provider<LoganParserService>((ref) {
   return LoganParserService();
+});
+
+/// 历史记录存储服务 Provider（在logan_provider中也需要使用）
+final historyStorageServiceProvider = Provider<HistoryStorageService>((ref) {
+  return HistoryStorageService();
+});
+
+/// Logan数据存储服务 Provider
+final loganDataStorageServiceProvider = Provider<LoganDataStorageService>((
+  ref,
+) {
+  return LoganDataStorageService();
 });
 
 /// 应用 UI 状态 Provider
@@ -17,7 +33,8 @@ final appStateProvider = StateNotifierProvider<AppStateNotifier, AppUIState>((
   ref,
 ) {
   final parserService = ref.watch(loganParserServiceProvider);
-  return AppStateNotifier(parserService);
+  final dataStorageService = ref.watch(loganDataStorageServiceProvider);
+  return AppStateNotifier(parserService, dataStorageService);
 });
 
 /// 原始日志数据 Provider
@@ -41,11 +58,69 @@ final selectedMenuItemProvider = StateProvider<String>((ref) => '0');
 /// 应用状态管理器
 class AppStateNotifier extends StateNotifier<AppUIState> {
   final LoganParserService _parserService;
+  final LoganDataStorageService _dataStorageService;
 
-  AppStateNotifier(this._parserService) : super(IdleState());
+  AppStateNotifier(this._parserService, this._dataStorageService)
+    : super(IdleState());
+
+  /// 初始化应用数据（应用启动时调用）
+  Future<void> initializeAppData(WidgetRef ref) async {
+    try {
+      // 检查是否有存储的数据
+      final hasStoredData = await _dataStorageService.hasStoredData();
+
+      if (hasStoredData) {
+        state = LogDecodeLoadingState();
+
+        // 加载保存的数据
+        final originalLogData = await _dataStorageService.loadOriginalLogData();
+        final searchKeyword = await _dataStorageService.loadSearchKeyword();
+        final filterType = await _dataStorageService.loadFilterType();
+        final selectedMenuItem =
+            await _dataStorageService.loadSelectedMenuItem();
+
+        if (originalLogData.isNotEmpty) {
+          // 更新数据
+          ref.read(originalLogDataProvider.notifier).state = originalLogData;
+          ref.read(searchKeywordProvider.notifier).state = searchKeyword;
+          ref.read(filterTypeProvider.notifier).state = filterType;
+          ref.read(selectedMenuItemProvider.notifier).state = selectedMenuItem;
+
+          // 应用筛选
+          _applyFiltersToData(ref, originalLogData, searchKeyword, filterType);
+
+          state = LogDecodeSuccessState(originalLogData);
+          print('成功恢复 ${originalLogData.length} 条日志数据');
+        }
+      }
+    } catch (e) {
+      print('初始化应用数据失败: $e');
+      state = IdleState();
+    }
+  }
+
+  /// 应用筛选条件到数据
+  void _applyFiltersToData(
+    WidgetRef ref,
+    List<LoganLogItem> originalData,
+    String searchKeyword,
+    String filterType,
+  ) {
+    final filteredData =
+        originalData.where((item) {
+          final matchesSearch = item.containsKeyword(searchKeyword);
+          final matchesFilter = item.matchesFilter(filterType);
+          return matchesSearch && matchesFilter;
+        }).toList();
+
+    ref.read(filteredLogDataProvider.notifier).state = filteredData;
+  }
 
   /// 选择并解析日志文件
-  Future<void> pickAndParseLogFile(WidgetRef ref) async {
+  Future<void> pickAndParseLogFile(
+    WidgetRef ref, [
+    BuildContext? context,
+  ]) async {
     try {
       // 打开文件选择器
       final result = await FilePicker.platform.pickFiles(
@@ -57,7 +132,7 @@ class AppStateNotifier extends StateNotifier<AppUIState> {
       if (result != null && result.files.isNotEmpty) {
         final filePath = result.files.first.path;
         if (filePath != null) {
-          await _parseLogFile(File(filePath), ref);
+          await _parseLogFile(File(filePath), ref, context);
         }
       }
     } catch (e) {
@@ -67,22 +142,49 @@ class AppStateNotifier extends StateNotifier<AppUIState> {
   }
 
   /// 解析日志文件
-  Future<void> _parseLogFile(File file, WidgetRef ref) async {
+  Future<void> _parseLogFile(
+    File file,
+    WidgetRef ref, [
+    BuildContext? context,
+  ]) async {
     try {
       state = LogDecodeLoadingState();
 
       // 解析日志文件
       List<LoganLogItem> logItems;
+      String? errorMessage;
+      bool isSuccess = true;
+      
       try {
         logItems = await _parserService.parseLogFile(file);
       } catch (e) {
         print('使用真实解析失败，使用模拟数据: $e');
         // 如果真实解析失败，使用模拟数据
-        logItems = await _parserService.mockParseLogFile(file);
+        try {
+          logItems = await _parserService.mockParseLogFile(file);
+        } catch (mockError) {
+          isSuccess = false;
+          errorMessage = mockError.toString();
+          logItems = [];
+        }
       }
 
-      if (logItems.isEmpty) {
+      // 保存解析记录到历史
+      await _saveParseHistory(
+        ref,
+        file,
+        logItems.length,
+        isSuccess,
+        errorMessage,
+      );
+
+      if (logItems.isEmpty && isSuccess) {
         state = LogDecodeFailState('解析结果为空');
+        return;
+      }
+
+      if (!isSuccess) {
+        state = LogDecodeFailState('解析失败: $errorMessage');
         return;
       }
 
@@ -95,19 +197,129 @@ class AppStateNotifier extends StateNotifier<AppUIState> {
       ref.read(filterTypeProvider.notifier).state = '';
       ref.read(selectedLogItemProvider.notifier).state = null;
 
+      // 保存数据到本地存储
+      await _persistDataToStorage(ref, file.path);
+
       state = LogDecodeSuccessState(logItems);
 
-      // 尝试生成 JSON 文件
+      // 尝试生成 JSON 文件到应用文档目录
       try {
-        final outputDir = path.dirname(file.path);
-        await _parserService.generateJsonFile(logItems, outputDir);
-        print('JSON 文件已生成到: $outputDir');
+        // 获取应用文档目录，避免权限问题
+        final documentsDirectory = await getApplicationDocumentsDirectory();
+        final outputDir = documentsDirectory.path;
+
+        // 获取原文件名用于生成更有意义的JSON文件名
+        final originalFileName = path.basename(file.path);
+
+        final jsonFile = await _parserService.generateJsonFile(
+          logItems,
+          outputDir,
+          originalFileName: originalFileName,
+        );
+        print('JSON 文件已生成到: ${jsonFile.path}');
+
+        // 显示成功消息给用户
+        if (context != null && context.mounted) {
+          final fileName = path.basename(jsonFile.path);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('JSON文件已保存至应用文档目录：$fileName')),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+              action:
+                  Platform.isMacOS
+                      ? SnackBarAction(
+                        label: '在Finder中显示',
+                        textColor: Colors.white,
+                        onPressed: () => _showInFinder(jsonFile.path),
+                      )
+                      : null,
+            ),
+          );
+        }
       } catch (e) {
         print('生成 JSON 文件失败: $e');
+        // 显示错误消息给用户
+        if (context != null && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('生成JSON文件失败: $e')),
+                ],
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
       }
     } catch (e) {
       print('解析日志文件失败: $e');
+      await _saveParseHistory(ref, file, 0, false, e.toString());
       state = LogDecodeFailState('解析失败: $e');
+    }
+  }
+
+  /// 持久化数据到本地存储
+  Future<void> _persistDataToStorage(WidgetRef ref, String filePath) async {
+    try {
+      final originalData = ref.read(originalLogDataProvider);
+      final searchKeyword = ref.read(searchKeywordProvider);
+      final filterType = ref.read(filterTypeProvider);
+      final selectedMenuItem = ref.read(selectedMenuItemProvider);
+
+      // 保存数据
+      await _dataStorageService.saveOriginalLogData(originalData);
+      await _dataStorageService.saveSearchKeyword(searchKeyword);
+      await _dataStorageService.saveFilterType(filterType);
+      await _dataStorageService.saveSelectedMenuItem(selectedMenuItem);
+      await _dataStorageService.saveLastParseFilePath(filePath);
+
+      print('数据已持久化保存');
+    } catch (e) {
+      print('持久化数据失败: $e');
+    }
+  }
+
+  /// 在Finder中显示文件（仅macOS）
+  Future<void> _showInFinder(String filePath) async {
+    if (Platform.isMacOS) {
+      try {
+        await Process.run('open', ['-R', filePath]);
+      } catch (e) {
+        print('打开Finder失败: $e');
+      }
+    }
+  }
+
+  /// 保存解析历史记录
+  Future<void> _saveParseHistory(
+    WidgetRef ref,
+    File file,
+    int logCount,
+    bool isSuccess,
+    String? errorMessage,
+  ) async {
+    try {
+      final historyService = ref.read(historyStorageServiceProvider);
+      final record = await HistoryStorageService.createParseRecord(
+        filePath: file.path,
+        logCount: logCount,
+        isSuccess: isSuccess,
+        errorMessage: errorMessage,
+      );
+      await historyService.addParseRecord(record);
+    } catch (e) {
+      print('保存解析历史记录失败: $e');
     }
   }
 
@@ -132,6 +344,10 @@ class AppStateNotifier extends StateNotifier<AppUIState> {
     ref.read(searchKeywordProvider.notifier).state = searchKeyword;
     ref.read(filterTypeProvider.notifier).state = filterType;
 
+    // 保存搜索和筛选条件
+    _dataStorageService.saveSearchKeyword(searchKeyword);
+    _dataStorageService.saveFilterType(filterType);
+
     // 更新状态
     if (filteredData.isEmpty &&
         (searchKeyword.isNotEmpty || filterType.isNotEmpty)) {
@@ -146,6 +362,12 @@ class AppStateNotifier extends StateNotifier<AppUIState> {
     ref.read(selectedLogItemProvider.notifier).state = item;
   }
 
+  /// 更新选中的菜单项
+  void updateSelectedMenuItem(WidgetRef ref, String menuItem) {
+    ref.read(selectedMenuItemProvider.notifier).state = menuItem;
+    _dataStorageService.saveSelectedMenuItem(menuItem);
+  }
+
   /// 重置状态
   void reset(WidgetRef ref) {
     ref.read(originalLogDataProvider.notifier).state = [];
@@ -153,6 +375,19 @@ class AppStateNotifier extends StateNotifier<AppUIState> {
     ref.read(selectedLogItemProvider.notifier).state = null;
     ref.read(searchKeywordProvider.notifier).state = '';
     ref.read(filterTypeProvider.notifier).state = '';
+    
+    // 清除持久化数据
+    _dataStorageService.clearAllData();
+    
     state = IdleState();
+  }
+
+  /// 解析指定的日志文件（公共方法，供历史记录页面使用）
+  Future<void> parseSpecificFile(
+    File file,
+    WidgetRef ref, [
+    BuildContext? context,
+  ]) async {
+    await _parseLogFile(file, ref, context);
   }
 }

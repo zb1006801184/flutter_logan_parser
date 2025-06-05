@@ -4,15 +4,30 @@ import '../widgets/sidebar_menu.dart';
 import '../providers/logan_provider.dart';
 import '../theme/app_theme.dart';
 import 'log_decode_page.dart';
+import 'parse_history_page.dart';
 import 'other_tools_page.dart';
 import 'about_page.dart';
 
 /// 主页面
-class HomePage extends ConsumerWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage> {
+  @override
+  void initState() {
+    super.initState();
+    // 应用启动时初始化数据
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(appStateProvider.notifier).initializeAppData(ref);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final selectedMenuItem = ref.watch(selectedMenuItemProvider);
 
     return Scaffold(
@@ -53,8 +68,10 @@ class HomePage extends ConsumerWidget {
       case '0':
         return const LogDecodePage();
       case '1':
-        return const OtherToolsPage();
+        return const ParseHistoryPage();
       case '2':
+        return const OtherToolsPage();
+      case '3':
         return const AboutPage();
       default:
         return const LogDecodePage();
