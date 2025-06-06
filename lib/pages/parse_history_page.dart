@@ -5,7 +5,7 @@ import '../providers/history_provider.dart';
 import '../providers/logan_provider.dart';
 import '../models/parse_history.dart';
 import '../theme/app_theme.dart';
-import 'widgets/parse_history_item.dart';
+import '../widgets/parse_history_item.dart';
 
 /// 解析历史记录页面
 class ParseHistoryPage extends ConsumerStatefulWidget {

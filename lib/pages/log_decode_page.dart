@@ -56,7 +56,7 @@ class _LogDecodePageState extends ConsumerState<LogDecodePage>
   Widget build(BuildContext context) {
     // 调用父类build方法以保持页面活跃
     super.build(context);
-    
+
     final appState = ref.watch(appStateProvider);
     final filteredLogData = ref.watch(filteredLogDataProvider);
     final selectedLogItem = ref.watch(selectedLogItemProvider);
@@ -190,12 +190,12 @@ class _LogDecodePageState extends ConsumerState<LogDecodePage>
           children: [
             // 日志列表
             Expanded(
-              flex: 3,
+              flex: 1,
               child: _buildLogList(filteredLogData, selectedLogItem),
             ),
 
             // 日志详情
-            Expanded(flex: 2, child: _buildLogDetail(selectedLogItem)),
+            Expanded(flex: 1, child: _buildLogDetail(selectedLogItem)),
           ],
         );
 

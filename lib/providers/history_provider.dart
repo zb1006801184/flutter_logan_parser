@@ -1,13 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/parse_history.dart';
-import '../services/history_storage_service.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
-/// 历史记录存储服务 Provider
-final historyStorageServiceProvider = Provider<HistoryStorageService>((ref) {
-  return HistoryStorageService();
-});
 
 /// 解析历史记录列表 Provider
 final parseHistoryListProvider =

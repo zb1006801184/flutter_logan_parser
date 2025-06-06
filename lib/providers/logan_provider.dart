@@ -11,8 +11,6 @@ import 'package:path_provider/path_provider.dart';
 import '../models/logan_log_item.dart';
 import '../models/app_state.dart';
 import '../services/logan_parser_service.dart';
-import '../services/history_storage_service.dart';
-import '../services/logan_data_storage_service.dart';
 
 /// Logan 解析服务 Provider
 final loganParserServiceProvider = Provider.autoDispose<LoganParserService>((
@@ -21,19 +19,6 @@ final loganParserServiceProvider = Provider.autoDispose<LoganParserService>((
   return LoganParserService();
 });
 
-/// 历史记录存储服务 Provider（在logan_provider中也需要使用）
-final historyStorageServiceProvider =
-    Provider.autoDispose<HistoryStorageService>((ref) {
-  return HistoryStorageService();
-});
-
-/// Logan数据存储服务 Provider
-final loganDataStorageServiceProvider =
-    Provider.autoDispose<LoganDataStorageService>((
-  ref,
-) {
-  return LoganDataStorageService();
-});
 
 /// 应用 UI 状态 Provider
 final appStateProvider =
@@ -41,8 +26,7 @@ final appStateProvider =
   ref,
 ) {
   final parserService = ref.watch(loganParserServiceProvider);
-  final dataStorageService = ref.watch(loganDataStorageServiceProvider);
-  return AppStateNotifier(parserService, dataStorageService);
+  return AppStateNotifier(parserService);
 });
 
 /// 原始日志数据 Provider
@@ -74,9 +58,8 @@ final selectedMenuItemProvider = StateProvider<String>(
 /// 应用状态管理器
 class AppStateNotifier extends StateNotifier<AppUIState> {
   final LoganParserService _parserService;
-  final LoganDataStorageService _dataStorageService;
 
-  AppStateNotifier(this._parserService, this._dataStorageService)
+  AppStateNotifier(this._parserService)
     : super(IdleState());
 
   /// 初始化应用数据（应用启动时调用）
@@ -231,9 +214,6 @@ class AppStateNotifier extends StateNotifier<AppUIState> {
     ref.read(searchKeywordProvider.notifier).state = searchKeyword;
     ref.read(filterTypeProvider.notifier).state = filterType;
 
-    // 保存搜索和筛选条件
-    _dataStorageService.saveSearchKeyword(searchKeyword);
-    _dataStorageService.saveFilterType(filterType);
 
     // 更新状态
     if (filteredData.isEmpty &&
@@ -262,8 +242,6 @@ class AppStateNotifier extends StateNotifier<AppUIState> {
     ref.read(searchKeywordProvider.notifier).state = '';
     ref.read(filterTypeProvider.notifier).state = '';
     
-    // 清除持久化数据
-    _dataStorageService.clearAllData();
     
     state = IdleState();
   }
