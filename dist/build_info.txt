@@ -1,0 +1,35 @@
+Logan 日志解析工具 - macOS 分发包构建信息
+==========================================
+
+应用名称: 日志解析器
+版本号: 
+构建号: 
+构建时间: 2025年 6月 6日 星期五 15时20分45秒 CST
+构建机器: zhubiao07deMacBookPro.local
+系统版本: macOS 15.4
+Flutter 版本: Flutter 3.29.2 • channel stable • https://github.com/flutter/flutter.git
+Dart 版本: Dart SDK version: 3.7.2 (stable) (Tue Mar 11 04:27:50 2025 -0700) on "macos_arm64"
+签名状态: 已签名
+
+分发包信息:
+-----------
+DMG 文件: 日志解析器_v__macOS.dmg
+文件大小:  19M
+SHA256: ac10518775c40353deac3b4b3c1509a4c42d35f37b0ce7f5da1defe1c7d2c501
+
+安装说明:
+---------
+1. 双击 DMG 文件打开
+2. 将 日志解析器.app 拖拽到 Applications 文件夹
+3. 在 Applications 文件夹中找到应用并运行
+
+注意事项（未签名应用）:
+---------------------
+- 首次运行时，系统会显示安全提示，这是正常现象
+- 解决方法：
+  1. 双击应用时如果显示"无法打开"，点击"取消"
+  2. 前往 系统偏好设置 > 安全性与隐私 > 通用
+  3. 在底部会看到被阻止的应用信息，点击"仍要打开"
+  4. 再次确认"打开"即可正常使用
+- 或者使用命令行方式：
+  sudo xattr -rd com.apple.quarantine /Applications/日志解析器.app

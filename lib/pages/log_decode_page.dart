@@ -259,7 +259,7 @@ class _LogDecodePageState extends ConsumerState<LogDecodePage>
             // 日志时间
             _buildDetailItem(
               '日志时间',
-              selectedItem.logTime ?? '未知',
+              selectedItem.lotimeParse(),
               Icons.access_time,
             ),
 
