@@ -274,17 +274,6 @@ class AppStateNotifier extends StateNotifier<AppUIState> {
     }
   }
 
-  /// 在Finder中显示文件（仅macOS）
-  Future<void> _showInFinder(String filePath) async {
-    if (Platform.isMacOS) {
-      try {
-        await Process.run('open', ['-R', filePath]);
-      } catch (e) {
-        print('打开Finder失败: $e');
-      }
-    }
-  }
-
   /// 保存解析历史记录
   Future<void> _saveParseHistory(
     WidgetRef ref,

@@ -12,15 +12,13 @@ final historyStorageServiceProvider = Provider<HistoryStorageService>((ref) {
 /// 解析历史记录列表 Provider
 final parseHistoryListProvider =
     StateNotifierProvider<ParseHistoryNotifier, List<ParseHistory>>((ref) {
-      final storageService = ref.watch(historyStorageServiceProvider);
-      return ParseHistoryNotifier(storageService);
+      return ParseHistoryNotifier();
     });
 
 /// 解析历史记录状态管理器
 class ParseHistoryNotifier extends StateNotifier<List<ParseHistory>> {
-  final HistoryStorageService _storageService;
 
-  ParseHistoryNotifier(this._storageService) : super([]) {
+  ParseHistoryNotifier() : super([]) {
     // 初始化时加载历史记录
     _loadHistory();
   }
