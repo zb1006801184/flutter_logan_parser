@@ -52,9 +52,12 @@ class FilterOption {
 
   static const List<FilterOption> options = [
     FilterOption(key: '', displayName: '全部日志'),
-    FilterOption(key: 'printerRepeatProcess', displayName: '打印机补打'),
-    FilterOption(key: 'printerAckProcess', displayName: '打印机ACK流程'),
-    FilterOption(key: 'printerConvertProcess', displayName: '打印机转换流程'),
-    FilterOption(key: 'printerPrintProcess', displayName: '打印机打印流程'),
+    FilterOption(key: '2', displayName: '调试信息'),
+    FilterOption(key: '3', displayName: '信息/埋点'),
+    FilterOption(key: '4', displayName: '错误信息'),
+    FilterOption(key: '5', displayName: '警告信息'),
+    FilterOption(key: '6', displayName: '严重错误'),
+    FilterOption(key: '7', displayName: '网络请求'),
+    FilterOption(key: '8', displayName: '性能指标'),
   ];
 }

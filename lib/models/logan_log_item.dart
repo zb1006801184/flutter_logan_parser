@@ -9,7 +9,7 @@ class LoganLogItem {
   @JsonKey(name: 'c')
   final String? content;
 
-  /// 日志类型标识 (2:调试, 3:提示, 4:错误, 5:警告)
+  /// 日志类型标识 (2:调试, 3:信息/埋点, 4:错误, 5:警告 6：严重错误/崩溃  7：网络请求  8: 性能指标)
   @JsonKey(name: 'f')
   final String? flag;
 
@@ -51,11 +51,17 @@ class LoganLogItem {
       case '2':
         return '调试信息';
       case '3':
-        return '提示信息';
+        return '信息/埋点';
       case '4':
         return '错误信息';
       case '5':
         return '警告信息';
+      case '6':
+        return '严重错误';
+      case '7':
+        return '网络请求';
+      case '8':
+        return '性能指标';
       default:
         return '其他';
     }
@@ -73,9 +79,11 @@ class LoganLogItem {
 
   /// 判断是否匹配筛选条件
   bool matchesFilter(String filterType) {
+    // 如果筛选类型为空或者是"全部日志"，则显示所有日志
     if (filterType.isEmpty || filterType == '全部日志') return true;
 
-    return content?.contains(filterType) ?? false;
+    // 根据日志类型标识进行筛选
+    return flag == filterType;
   }
 
   @override
