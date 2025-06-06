@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
-import '../../models/parse_history.dart';
-import '../../theme/app_theme.dart';
+import '../models/parse_history.dart';
+import '../theme/app_theme.dart';
 
 /// 解析历史记录项组件
 class ParseHistoryItem extends StatelessWidget {

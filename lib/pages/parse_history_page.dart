@@ -8,11 +8,25 @@ import '../theme/app_theme.dart';
 import 'widgets/parse_history_item.dart';
 
 /// 解析历史记录页面
-class ParseHistoryPage extends ConsumerWidget {
+class ParseHistoryPage extends ConsumerStatefulWidget {
   const ParseHistoryPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ParseHistoryPage> createState() => _ParseHistoryPageState();
+}
+
+/// 解析历史记录页面状态类
+class _ParseHistoryPageState extends ConsumerState<ParseHistoryPage>
+    with AutomaticKeepAliveClientMixin {
+  /// 保持页面活跃状态
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    // 调用父类build方法以保持页面活跃
+    super.build(context);
+    
     final historyList = ref.watch(parseHistoryListProvider);
 
     return Scaffold(

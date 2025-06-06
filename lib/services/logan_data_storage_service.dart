@@ -112,15 +112,6 @@ class LoganDataStorageService {
     }
   }
 
-  /// 保存最后解析的文件路径
-  Future<void> saveLastParseFilePath(String filePath) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_lastParseFilePathKey, filePath);
-    } catch (e) {
-      print('保存文件路径失败: $e');
-    }
-  }
 
   /// 读取最后解析的文件路径
   Future<String?> loadLastParseFilePath() async {

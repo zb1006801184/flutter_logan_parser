@@ -17,7 +17,6 @@ final parseHistoryListProvider =
 
 /// 解析历史记录状态管理器
 class ParseHistoryNotifier extends StateNotifier<List<ParseHistory>> {
-
   ParseHistoryNotifier() : super([]) {
     // 初始化时加载历史记录
     _loadHistory();
@@ -87,7 +86,6 @@ class ParseHistoryNotifier extends StateNotifier<List<ParseHistory>> {
       // 更新状态
       state = historyList;
       print('成功加载 ${historyList.length} 条历史记录');
-      
     } catch (e) {
       print('加载历史记录失败: $e');
       // 加载失败时设置为空列表
@@ -114,13 +112,6 @@ class ParseHistoryNotifier extends StateNotifier<List<ParseHistory>> {
 
   /// 重新加载历史记录
   Future<void> refreshHistory() async {
-    await _loadHistory();
-  }
-
-  /// 添加解析记录（现在不需要手动添加，因为是基于文件系统扫描）
-  Future<void> addRecord(ParseHistory record) async {
-    // 由于现在是基于文件系统扫描，不需要手动添加记录
-    // 只需要重新加载即可
     await _loadHistory();
   }
 
@@ -165,5 +156,11 @@ class ParseHistoryNotifier extends StateNotifier<List<ParseHistory>> {
       print('检查文件是否存在失败: $e');
       return false;
     }
+  }
+
+  /// 添加解析记录
+  Future<void> addRecord(ParseHistory record) async {
+    state = [record, ...state];
+    refreshHistory();
   }
 }

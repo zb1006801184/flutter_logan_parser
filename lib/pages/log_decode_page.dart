@@ -15,9 +15,14 @@ class LogDecodePage extends ConsumerStatefulWidget {
   ConsumerState<LogDecodePage> createState() => _LogDecodePageState();
 }
 
-class _LogDecodePageState extends ConsumerState<LogDecodePage> {
+class _LogDecodePageState extends ConsumerState<LogDecodePage>
+    with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
   String _selectedFilter = '';
+
+  /// 保持页面活跃状态
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -49,6 +54,9 @@ class _LogDecodePageState extends ConsumerState<LogDecodePage> {
 
   @override
   Widget build(BuildContext context) {
+    // 调用父类build方法以保持页面活跃
+    super.build(context);
+    
     final appState = ref.watch(appStateProvider);
     final filteredLogData = ref.watch(filteredLogDataProvider);
     final selectedLogItem = ref.watch(selectedLogItemProvider);

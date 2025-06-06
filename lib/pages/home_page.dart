@@ -5,8 +5,7 @@ import '../providers/logan_provider.dart';
 import '../theme/app_theme.dart';
 import 'log_decode_page.dart';
 import 'parse_history_page.dart';
-import 'other_tools_page.dart';
-import 'about_page.dart';
+
 
 /// 主页面
 class HomePage extends ConsumerStatefulWidget {
@@ -17,9 +16,19 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
+  // 预创建所有页面实例，避免重复创建
+  late final List<Widget> _pages;
+
   @override
   void initState() {
     super.initState();
+    
+    // 初始化所有页面实例
+    _pages = [
+      const LogDecodePage(), // 索引 0: Logan解析
+      const ParseHistoryPage(), // 索引 1: 解析历史
+    ];
+    
     // 应用启动时初始化数据
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(appStateProvider.notifier).initializeAppData(ref);
@@ -29,6 +38,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final selectedMenuItem = ref.watch(selectedMenuItemProvider);
+    final selectedIndex = _getSelectedIndex(selectedMenuItem);
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -53,7 +63,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                   topLeft: Radius.circular(AppRadius.lg),
                   bottomLeft: Radius.circular(AppRadius.lg),
                 ),
-                child: _buildContent(selectedMenuItem),
+                // 使用 IndexedStack 保持页面状态
+                child: IndexedStack(index: selectedIndex, children: _pages),
               ),
             ),
           ),
@@ -62,19 +73,19 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  /// 根据选中的菜单项构建对应的内容
-  Widget _buildContent(String selectedMenuItem) {
+  /// 根据菜单项ID获取对应的页面索引
+  int _getSelectedIndex(String selectedMenuItem) {
     switch (selectedMenuItem) {
       case '0':
-        return const LogDecodePage();
+        return 0; // LogDecodePage
       case '1':
-        return const ParseHistoryPage();
+        return 1; // ParseHistoryPage  
       case '2':
-        return const OtherToolsPage();
+        return 2; // OtherToolsPage
       case '3':
-        return const AboutPage();
+        return 3; // AboutPage
       default:
-        return const LogDecodePage();
+        return 0; // 默认返回LogDecodePage
     }
   }
 }

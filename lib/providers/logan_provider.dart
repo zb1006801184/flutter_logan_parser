@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_logan_parser/models/parse_history.dart';
 import 'package:flutter_logan_parser/providers/history_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
@@ -133,15 +134,6 @@ class AppStateNotifier extends StateNotifier<AppUIState> {
         logItems = [];
       }
 
-      // 保存解析记录到历史
-      await _saveParseHistory(
-        ref,
-        file,
-        logItems.length,
-        isSuccess,
-        errorMessage,
-      );
-
       if (logItems.isEmpty && isSuccess) {
         state = LogDecodeFailState('解析结果为空');
         return;
@@ -179,6 +171,20 @@ class AppStateNotifier extends StateNotifier<AppUIState> {
         );
         print('JSON 文件已生成到: ${jsonFile.path}');
 
+        //更新解析历史列表
+        ref
+            .read(parseHistoryListProvider.notifier)
+            .addRecord(
+              ParseHistory(
+                filePath: jsonFile.path,
+                fileName: originalFileName,
+                parseTime: DateTime.now(),
+                fileSize: jsonFile.lengthSync(),
+                logCount: logItems.length,
+                isSuccess: true,
+              ),
+            );
+
       } catch (e) {
         print('生成 JSON 文件失败: $e');
         // 显示错误消息给用户
@@ -199,54 +205,10 @@ class AppStateNotifier extends StateNotifier<AppUIState> {
         }
       }
     } catch (e) {
-      print('解析日志文件失败: $e');
-      await _saveParseHistory(ref, file, 0, false, e.toString());
       state = LogDecodeFailState('解析失败: $e');
     }
   }
 
-  /// 持久化数据到本地存储
-  Future<void> _persistDataToStorage(WidgetRef ref, String filePath) async {
-    try {
-      final originalData = ref.read(originalLogDataProvider);
-      final searchKeyword = ref.read(searchKeywordProvider);
-      final filterType = ref.read(filterTypeProvider);
-      final selectedMenuItem = ref.read(selectedMenuItemProvider);
-
-      // 保存数据
-      await _dataStorageService.saveOriginalLogData(originalData);
-      await _dataStorageService.saveSearchKeyword(searchKeyword);
-      await _dataStorageService.saveFilterType(filterType);
-      await _dataStorageService.saveSelectedMenuItem(selectedMenuItem);
-      await _dataStorageService.saveLastParseFilePath(filePath);
-
-      print('数据已持久化保存');
-    } catch (e) {
-      print('持久化数据失败: $e');
-    }
-  }
-
-  /// 保存解析历史记录
-  Future<void> _saveParseHistory(
-    WidgetRef ref,
-    File file,
-    int logCount,
-    bool isSuccess,
-    String? errorMessage,
-  ) async {
-    try {
-      final historyService = ref.read(historyStorageServiceProvider);
-      final record = await HistoryStorageService.createParseRecord(
-        filePath: file.path,
-        logCount: logCount,
-        isSuccess: isSuccess,
-        errorMessage: errorMessage,
-      );
-      await historyService.addParseRecord(record);
-    } catch (e) {
-      print('保存解析历史记录失败: $e');
-    }
-  }
 
   /// 搜索和筛选日志
   void searchAndFilter(WidgetRef ref, String searchKeyword, String filterType) {
@@ -290,9 +252,6 @@ class AppStateNotifier extends StateNotifier<AppUIState> {
   /// 更新选中的菜单项
   void updateSelectedMenuItem(WidgetRef ref, String menuItem) {
     ref.read(selectedMenuItemProvider.notifier).state = menuItem;
-    if (menuItem == '1') {
-      ref.read(parseHistoryListProvider.notifier).refreshHistory();
-    }
   }
 
   /// 重置状态
