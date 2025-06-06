@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_logan_parser/providers/history_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
@@ -34,7 +35,7 @@ final loganDataStorageServiceProvider =
 
 /// 应用 UI 状态 Provider
 final appStateProvider =
-    StateNotifierProvider.autoDispose<AppStateNotifier, AppUIState>((
+    StateNotifierProvider<AppStateNotifier, AppUIState>((
   ref,
 ) {
   final parserService = ref.watch(loganParserServiceProvider);
@@ -43,28 +44,28 @@ final appStateProvider =
 });
 
 /// 原始日志数据 Provider
-final originalLogDataProvider = StateProvider.autoDispose<List<LoganLogItem>>(
+final originalLogDataProvider = StateProvider<List<LoganLogItem>>(
   (ref) => [],
 );
 
 /// 筛选后的日志数据 Provider
-final filteredLogDataProvider = StateProvider.autoDispose<List<LoganLogItem>>(
+final filteredLogDataProvider = StateProvider<List<LoganLogItem>>(
   (ref) => [],
 );
 
 /// 选中的日志项 Provider
-final selectedLogItemProvider = StateProvider.autoDispose<LoganLogItem?>(
+final selectedLogItemProvider = StateProvider<LoganLogItem?>(
   (ref) => null,
 );
 
 /// 搜索关键词 Provider
-final searchKeywordProvider = StateProvider.autoDispose<String>((ref) => '');
+final searchKeywordProvider = StateProvider<String>((ref) => '');
 
 /// 筛选类型 Provider
-final filterTypeProvider = StateProvider.autoDispose<String>((ref) => '');
+final filterTypeProvider = StateProvider<String>((ref) => '');
 
 /// 侧边菜单选中项 Provider
-final selectedMenuItemProvider = StateProvider.autoDispose<String>(
+final selectedMenuItemProvider = StateProvider<String>(
   (ref) => '0',
 );
 
@@ -78,56 +79,9 @@ class AppStateNotifier extends StateNotifier<AppUIState> {
 
   /// 初始化应用数据（应用启动时调用）
   Future<void> initializeAppData(WidgetRef ref) async {
-    try {
-      // 检查是否有存储的数据
-      final hasStoredData = await _dataStorageService.hasStoredData();
-
-      if (hasStoredData) {
-        state = LogDecodeLoadingState();
-
-        // 加载保存的数据
-        final originalLogData = await _dataStorageService.loadOriginalLogData();
-        final searchKeyword = await _dataStorageService.loadSearchKeyword();
-        final filterType = await _dataStorageService.loadFilterType();
-        final selectedMenuItem =
-            await _dataStorageService.loadSelectedMenuItem();
-
-        if (originalLogData.isNotEmpty) {
-          // 更新数据
-          ref.read(originalLogDataProvider.notifier).state = originalLogData;
-          ref.read(searchKeywordProvider.notifier).state = searchKeyword;
-          ref.read(filterTypeProvider.notifier).state = filterType;
-          ref.read(selectedMenuItemProvider.notifier).state = selectedMenuItem;
-
-          // 应用筛选
-          _applyFiltersToData(ref, originalLogData, searchKeyword, filterType);
-
-          state = LogDecodeSuccessState(originalLogData);
-          print('成功恢复 ${originalLogData.length} 条日志数据');
-        }
-      }
-    } catch (e) {
-      print('初始化应用数据失败: $e');
-      state = IdleState();
-    }
+    state = IdleState();
   }
 
-  /// 应用筛选条件到数据
-  void _applyFiltersToData(
-    WidgetRef ref,
-    List<LoganLogItem> originalData,
-    String searchKeyword,
-    String filterType,
-  ) {
-    final filteredData =
-        originalData.where((item) {
-          final matchesSearch = item.containsKeyword(searchKeyword);
-          final matchesFilter = item.matchesFilter(filterType);
-          return matchesSearch && matchesFilter;
-        }).toList();
-
-    ref.read(filteredLogDataProvider.notifier).state = filteredData;
-  }
 
   /// 选择并解析日志文件
   Future<void> pickAndParseLogFile(
@@ -338,7 +292,9 @@ class AppStateNotifier extends StateNotifier<AppUIState> {
   /// 更新选中的菜单项
   void updateSelectedMenuItem(WidgetRef ref, String menuItem) {
     ref.read(selectedMenuItemProvider.notifier).state = menuItem;
-    _dataStorageService.saveSelectedMenuItem(menuItem);
+    if (menuItem == '1') {
+      ref.read(parseHistoryListProvider.notifier).refreshHistory();
+    }
   }
 
   /// 重置状态
