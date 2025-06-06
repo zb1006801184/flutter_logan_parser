@@ -5,6 +5,7 @@ import '../providers/history_provider.dart';
 import '../providers/logan_provider.dart';
 import '../models/parse_history.dart';
 import '../theme/app_theme.dart';
+import 'widgets/parse_history_item.dart';
 
 /// 解析历史记录页面
 class ParseHistoryPage extends ConsumerWidget {
@@ -19,38 +20,7 @@ class ParseHistoryPage extends ConsumerWidget {
       body: Column(
         children: [
           // 页面标题栏
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            decoration: BoxDecoration(
-              color: AppTheme.surfaceColor,
-              border: Border(
-                bottom: BorderSide(color: AppTheme.borderColor, width: 1),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.history, size: 24, color: AppTheme.primaryColor),
-                const SizedBox(width: AppSpacing.sm),
-                Text(
-                  '解析历史记录',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: AppTheme.textPrimary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                if (historyList.isNotEmpty)
-                  TextButton.icon(
-                    onPressed: () => _showClearConfirmDialog(context, ref),
-                    icon: const Icon(Icons.clear_all),
-                    label: const Text('清空历史'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppTheme.errorColor,
-                    ),
-                  ),
-              ],
-            ),
-          ),
+          _buildTitleBar(context, ref, historyList),
 
           // 历史记录列表
           Expanded(
@@ -59,6 +29,44 @@ class ParseHistoryPage extends ConsumerWidget {
                     ? _buildEmptyState(context)
                     : _buildHistoryList(context, ref, historyList),
           ),
+        ],
+      ),
+    );
+  }
+
+  //页面标题栏
+  Widget _buildTitleBar(
+    BuildContext context,
+    WidgetRef ref,
+    List<ParseHistory> historyList,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceColor,
+        border: Border(
+          bottom: BorderSide(color: AppTheme.borderColor, width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.history, size: 24, color: AppTheme.primaryColor),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            '解析历史记录',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const Spacer(),
+          if (historyList.isNotEmpty)
+            TextButton.icon(
+              onPressed: () => _showClearConfirmDialog(context, ref),
+              icon: const Icon(Icons.clear_all),
+              label: const Text('清空历史'),
+              style: TextButton.styleFrom(foregroundColor: AppTheme.errorColor),
+            ),
         ],
       ),
     );
@@ -102,217 +110,20 @@ class ParseHistoryPage extends ConsumerWidget {
       itemCount: historyList.length,
       itemBuilder: (context, index) {
         final record = historyList[index];
-        return _buildHistoryItem(context, ref, record);
+        return ParseHistoryItem(
+          record: record,
+          onTap: () => _reopenFile(context, ref, record),
+          onDelete: () => _deleteRecord(context, ref, record),
+        );
       },
     );
   }
 
-  /// 构建历史记录项
-  Widget _buildHistoryItem(
-    BuildContext context,
-    WidgetRef ref,
-    ParseHistory record,
-  ) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      elevation: 2,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        onTap: () => _showRecordDetail(context, ref, record),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 文件名和状态
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      record.fileName,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppTheme.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color:
-                          record.isSuccess
-                              ? AppTheme.successColor.withOpacity(0.1)
-                              : AppTheme.errorColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                      border: Border.all(
-                        color:
-                            record.isSuccess
-                                ? AppTheme.successColor.withOpacity(0.3)
-                                : AppTheme.errorColor.withOpacity(0.3),
-                      ),
-                    ),
-                    child: Text(
-                      record.isSuccess ? '成功' : '失败',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color:
-                            record.isSuccess
-                                ? AppTheme.successColor
-                                : AppTheme.errorColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sm),
+  
 
-              // 解析信息
-              Row(
-                children: [
-                  _buildInfoItem(
-                    context,
-                    Icons.access_time,
-                    record.parseTimeFormatted,
-                  ),
-                  const SizedBox(width: AppSpacing.lg),
-                  _buildInfoItem(
-                    context,
-                    Icons.storage,
-                    record.fileSizeFormatted,
-                  ),
-                  if (record.isSuccess) ...[
-                    const SizedBox(width: AppSpacing.lg),
-                    _buildInfoItem(
-                      context,
-                      Icons.format_list_numbered,
-                      '${record.logCount}条',
-                    ),
-                  ],
-                ],
-              ),
+  
 
-              // 文件路径
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                record.filePath,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-
-              // 操作按钮
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton.icon(
-                    onPressed: () => _reopenFile(context, ref, record),
-                    icon: const Icon(Icons.refresh, size: 16),
-                    label: const Text('重新解析'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppTheme.primaryColor,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  TextButton.icon(
-                    onPressed: () => _deleteRecord(context, ref, record),
-                    icon: const Icon(Icons.delete_outline, size: 16),
-                    label: const Text('删除'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppTheme.errorColor,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 构建信息项
-  Widget _buildInfoItem(BuildContext context, IconData icon, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: AppTheme.textSecondary),
-        const SizedBox(width: 4),
-        Text(
-          text,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: AppTheme.textSecondary),
-        ),
-      ],
-    );
-  }
-
-  /// 显示记录详情
-  void _showRecordDetail(
-    BuildContext context,
-    WidgetRef ref,
-    ParseHistory record,
-  ) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('解析记录详情'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildDetailRow('文件名', record.fileName),
-                _buildDetailRow('文件路径', record.filePath),
-                _buildDetailRow('解析时间', record.parseTimeFormatted),
-                _buildDetailRow('文件大小', record.fileSizeFormatted),
-                _buildDetailRow('解析状态', record.isSuccess ? '成功' : '失败'),
-                if (record.isSuccess)
-                  _buildDetailRow('日志条数', '${record.logCount}条'),
-                if (!record.isSuccess && record.errorMessage != null)
-                  _buildDetailRow('错误信息', record.errorMessage!),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('关闭'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  /// 构建详情行
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              '$label：',
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-          ),
-          Expanded(child: SelectableText(value)),
-        ],
-      ),
-    );
-  }
-
-  /// 重新解析文件
+  /// 重新打开文件
   Future<void> _reopenFile(
     BuildContext context,
     WidgetRef ref,
@@ -333,8 +144,7 @@ class ParseHistoryPage extends ConsumerWidget {
     ref.read(selectedMenuItemProvider.notifier).state = '0';
 
     // 开始解析文件
-    final appStateNotifier = ref.read(appStateProvider.notifier);
-    await appStateNotifier.parseSpecificFile(file, ref, context);
+    await ref.read(appStateProvider.notifier).loadLocalJsonFile(ref, file.path);
   }
 
   /// 删除记录

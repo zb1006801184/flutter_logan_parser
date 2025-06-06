@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_logan_parser/providers/history_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -160,9 +161,6 @@ class AppStateNotifier extends StateNotifier<AppUIState> {
       ref.read(filterTypeProvider.notifier).state = '';
       ref.read(selectedLogItemProvider.notifier).state = null;
 
-      // 保存数据到本地存储
-      await _persistDataToStorage(ref, file.path);
-
       state = LogDecodeSuccessState(logItems);
 
       // 尝试生成 JSON 文件到应用文档目录
@@ -318,5 +316,73 @@ class AppStateNotifier extends StateNotifier<AppUIState> {
     BuildContext? context,
   ]) async {
     await _parseLogFile(file, ref, context);
+  }
+
+  //加载本地保存的 json 文件
+  Future<void> loadLocalJsonFile(WidgetRef ref, String filePath) async {
+    try {
+      state = LogDecodeLoadingState();
+
+      final jsonFile = File(filePath);
+
+      // 检查文件是否存在
+      if (!await jsonFile.exists()) {
+        state = LogDecodeFailState('文件不存在: $filePath');
+        return;
+      }
+
+      // 读取JSON文件内容
+      final jsonString = await jsonFile.readAsString();
+
+      if (jsonString.isEmpty) {
+        state = LogDecodeFailState('文件内容为空');
+        return;
+      }
+
+      // 解析JSON数据
+      List<LoganLogItem> logItems;
+      try {
+        final jsonData = json.decode(jsonString);
+
+        if (jsonData is List) {
+          // 将JSON数组转换为LoganLogItem列表
+          logItems =
+              jsonData.map((item) {
+                if (item is Map<String, dynamic>) {
+                  return LoganLogItem.fromJson(item);
+                } else {
+                  throw FormatException('无效的日志项格式');
+                }
+              }).toList();
+        } else {
+          throw FormatException('JSON文件格式不正确，期望数组格式');
+        }
+      } catch (e) {
+        state = LogDecodeFailState('解析JSON文件失败: $e');
+        return;
+      }
+
+      if (logItems.isEmpty) {
+        state = LogDecodeFailState('JSON文件中没有日志数据');
+        return;
+      }
+
+      // 更新原始数据和筛选数据
+      ref.read(originalLogDataProvider.notifier).state = logItems;
+      ref.read(filteredLogDataProvider.notifier).state = logItems;
+
+      // 清空搜索和筛选条件
+      ref.read(searchKeywordProvider.notifier).state = '';
+      ref.read(filterTypeProvider.notifier).state = '';
+      ref.read(selectedLogItemProvider.notifier).state = null;
+
+      // 更新状态为成功
+      state = LogDecodeSuccessState(logItems);
+
+      print('成功加载JSON文件: $filePath，共 ${logItems.length} 条日志');
+    } catch (e) {
+      print('加载JSON文件失败: $e');
+      state = LogDecodeFailState('加载JSON文件失败: $e');
+    }
   }
 }
