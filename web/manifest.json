@@ -1,11 +1,11 @@
 {
-    "name": "flutter_logan_parser",
-    "short_name": "flutter_logan_parser",
+    "name": "日志解析器",
+    "short_name": "日志解析器",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Logan 日志解析工具 - Flutter 桌面端应用",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

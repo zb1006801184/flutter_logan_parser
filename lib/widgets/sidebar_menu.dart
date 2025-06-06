@@ -72,7 +72,7 @@ class SidebarMenu extends ConsumerWidget {
       ),
       child: Center(
         child: Text(
-          '日志解析器',
+          '菜单栏',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
             color: Colors.white,
             fontWeight: FontWeight.bold,
