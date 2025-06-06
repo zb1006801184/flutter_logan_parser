@@ -43,7 +43,7 @@ class LogItemWidget extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      logItem.logTime ?? '未知时间',
+                      logItem.lotimeParse(),
                       style: Theme.of(context).textTheme.logTime,
                     ),
                   ),

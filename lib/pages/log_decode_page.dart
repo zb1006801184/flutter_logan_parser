@@ -141,12 +141,12 @@ class _LogDecodePageState extends ConsumerState<LogDecodePage> {
     List<LoganLogItem> filteredLogData,
     LoganLogItem? selectedLogItem,
   ) {
-    switch (appState.runtimeType) {
-      case LogDecodeLoadingState:
+    switch (appState) {
+      case LogDecodeLoadingState _:
         return const LoadingWidget(message: '正在解析日志文件...');
 
-      case LogDecodeFailState:
-        final failState = appState as LogDecodeFailState;
+      case LogDecodeFailState _:
+        final failState = appState;
         return ErrorStateWidget(
           message: failState.errorMessage,
           actionText: '重新选择文件',
@@ -157,8 +157,8 @@ class _LogDecodePageState extends ConsumerState<LogDecodePage> {
           },
         );
 
-      case LogDecodeSuccessState:
-      case LogSearchEmptyState:
+      case LogDecodeSuccessState _:
+      case LogSearchEmptyState _:
         if (filteredLogData.isEmpty) {
           final isEmpty = appState is LogSearchEmptyState;
           return EmptyStateWidget(

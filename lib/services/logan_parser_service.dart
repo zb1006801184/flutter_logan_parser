@@ -279,7 +279,7 @@ class LoganParserService {
       fileName = 'logan_parsed_$timestamp.json';
     }
 
-    final outputFile = File('$outputDir/$fileName');
+    final outputFile = File('$outputDir/log/$fileName');
 
     // 确保输出目录存在
     await outputFile.parent.create(recursive: true);
@@ -288,50 +288,5 @@ class LoganParserService {
     return outputFile;
   }
 
-  /// 模拟解析（用于测试，如果无法获取真实的 Logan 解密算法）
-  Future<List<LoganLogItem>> mockParseLogFile(File file) async {
-    // 返回一些模拟数据
-    return [
-      LoganLogItem(
-        content: '应用启动完成',
-        logTime: '2024-01-15 10:30:00',
-        flag: '3',
-        threadName: 'main',
-        threadId: '1',
-        isMainThread: 'true',
-      ),
-      LoganLogItem(
-        content: '网络请求开始: https://api.example.com/data',
-        logTime: '2024-01-15 10:30:15',
-        flag: '2',
-        threadName: 'network-thread',
-        threadId: '12',
-        isMainThread: 'false',
-      ),
-      LoganLogItem(
-        content: '打印机连接成功 printerAckProcess',
-        logTime: '2024-01-15 10:31:00',
-        flag: '3',
-        threadName: 'printer-thread',
-        threadId: '15',
-        isMainThread: 'false',
-      ),
-      LoganLogItem(
-        content: '打印任务开始执行 printerPrintProcess',
-        logTime: '2024-01-15 10:31:30',
-        flag: '3',
-        threadName: 'printer-thread',
-        threadId: '15',
-        isMainThread: 'false',
-      ),
-      LoganLogItem(
-        content: '网络请求失败，连接超时',
-        logTime: '2024-01-15 10:32:00',
-        flag: '4',
-        threadName: 'network-thread',
-        threadId: '12',
-        isMainThread: 'false',
-      ),
-    ];
-  }
+  
 }

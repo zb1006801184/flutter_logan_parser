@@ -12,24 +12,29 @@ import '../services/history_storage_service.dart';
 import '../services/logan_data_storage_service.dart';
 
 /// Logan 解析服务 Provider
-final loganParserServiceProvider = Provider<LoganParserService>((ref) {
+final loganParserServiceProvider = Provider.autoDispose<LoganParserService>((
+  ref,
+) {
   return LoganParserService();
 });
 
 /// 历史记录存储服务 Provider（在logan_provider中也需要使用）
-final historyStorageServiceProvider = Provider<HistoryStorageService>((ref) {
+final historyStorageServiceProvider =
+    Provider.autoDispose<HistoryStorageService>((ref) {
   return HistoryStorageService();
 });
 
 /// Logan数据存储服务 Provider
-final loganDataStorageServiceProvider = Provider<LoganDataStorageService>((
+final loganDataStorageServiceProvider =
+    Provider.autoDispose<LoganDataStorageService>((
   ref,
 ) {
   return LoganDataStorageService();
 });
 
 /// 应用 UI 状态 Provider
-final appStateProvider = StateNotifierProvider<AppStateNotifier, AppUIState>((
+final appStateProvider =
+    StateNotifierProvider.autoDispose<AppStateNotifier, AppUIState>((
   ref,
 ) {
   final parserService = ref.watch(loganParserServiceProvider);
@@ -38,22 +43,30 @@ final appStateProvider = StateNotifierProvider<AppStateNotifier, AppUIState>((
 });
 
 /// 原始日志数据 Provider
-final originalLogDataProvider = StateProvider<List<LoganLogItem>>((ref) => []);
+final originalLogDataProvider = StateProvider.autoDispose<List<LoganLogItem>>(
+  (ref) => [],
+);
 
 /// 筛选后的日志数据 Provider
-final filteredLogDataProvider = StateProvider<List<LoganLogItem>>((ref) => []);
+final filteredLogDataProvider = StateProvider.autoDispose<List<LoganLogItem>>(
+  (ref) => [],
+);
 
 /// 选中的日志项 Provider
-final selectedLogItemProvider = StateProvider<LoganLogItem?>((ref) => null);
+final selectedLogItemProvider = StateProvider.autoDispose<LoganLogItem?>(
+  (ref) => null,
+);
 
 /// 搜索关键词 Provider
-final searchKeywordProvider = StateProvider<String>((ref) => '');
+final searchKeywordProvider = StateProvider.autoDispose<String>((ref) => '');
 
 /// 筛选类型 Provider
-final filterTypeProvider = StateProvider<String>((ref) => '');
+final filterTypeProvider = StateProvider.autoDispose<String>((ref) => '');
 
 /// 侧边菜单选中项 Provider
-final selectedMenuItemProvider = StateProvider<String>((ref) => '0');
+final selectedMenuItemProvider = StateProvider.autoDispose<String>(
+  (ref) => '0',
+);
 
 /// 应用状态管理器
 class AppStateNotifier extends StateNotifier<AppUIState> {
@@ -126,7 +139,7 @@ class AppStateNotifier extends StateNotifier<AppUIState> {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.any,
         allowMultiple: false,
-        dialogTitle: '选择 Logan 日志文件',
+        dialogTitle: '选择日志文件',
       );
 
       if (result != null && result.files.isNotEmpty) {
@@ -151,22 +164,18 @@ class AppStateNotifier extends StateNotifier<AppUIState> {
       state = LogDecodeLoadingState();
 
       // 解析日志文件
-      List<LoganLogItem> logItems;
+      List<LoganLogItem>? logItems;
       String? errorMessage;
       bool isSuccess = true;
       
       try {
         logItems = await _parserService.parseLogFile(file);
       } catch (e) {
-        print('使用真实解析失败，使用模拟数据: $e');
-        // 如果真实解析失败，使用模拟数据
-        try {
-          logItems = await _parserService.mockParseLogFile(file);
-        } catch (mockError) {
-          isSuccess = false;
-          errorMessage = mockError.toString();
-          logItems = [];
-        }
+        //解析失败
+        state = LogDecodeFailState('解析失败: $e');
+        isSuccess = false;
+        errorMessage = e.toString();
+        logItems = [];
       }
 
       // 保存解析记录到历史
@@ -218,31 +227,6 @@ class AppStateNotifier extends StateNotifier<AppUIState> {
         );
         print('JSON 文件已生成到: ${jsonFile.path}');
 
-        // 显示成功消息给用户
-        if (context != null && context.mounted) {
-          final fileName = path.basename(jsonFile.path);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text('JSON文件已保存至应用文档目录：$fileName')),
-                ],
-              ),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 3),
-              action:
-                  Platform.isMacOS
-                      ? SnackBarAction(
-                        label: '在Finder中显示',
-                        textColor: Colors.white,
-                        onPressed: () => _showInFinder(jsonFile.path),
-                      )
-                      : null,
-            ),
-          );
-        }
       } catch (e) {
         print('生成 JSON 文件失败: $e');
         // 显示错误消息给用户

@@ -29,6 +29,13 @@ class LoganLogItem {
   @JsonKey(name: 'm')
   final String? isMainThread;
 
+  /// 日志时间解析
+  String lotimeParse() {
+    if (logTime == null) return '';
+    final dateTime = DateTime.parse(logTime!);
+    return dateTime.toString();
+  }
+
   const LoganLogItem({
     this.content,
     this.flag,
